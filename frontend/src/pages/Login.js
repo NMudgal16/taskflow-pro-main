@@ -8,6 +8,8 @@ const Login = () => {
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
+  const [showPassword, setShowPassword] = useState(false);
+  
   const [loading, setLoading] = useState(false);
 
   if (isAuthenticated) return <Navigate to="/dashboard" replace />;
@@ -35,11 +37,11 @@ const Login = () => {
         <form onSubmit={handleSubmit} className="mt-8 space-y-4">
           <label className="block">
             <span className="text-sm font-semibold text-slate-700">Email</span>
-            <input className="form-input mt-1" type="email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required />
+            <input className="form-input mt-1" type="email" placeholder="Enter your email" value={form.email} onChange={(event) => setForm({ ...form, email: event.target.value })} required />
           </label>
           <label className="block">
             <span className="text-sm font-semibold text-slate-700">Password</span>
-            <input className="form-input mt-1" type="password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required />
+            <input className="form-input mt-1" type="password" placeholder="Enter your password" value={form.password} onChange={(event) => setForm({ ...form, password: event.target.value })} required />
           </label>
           <button className="btn-primary w-full" type="submit" disabled={loading}>
             {loading ? "Signing in..." : "Login"}

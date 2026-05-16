@@ -8,14 +8,14 @@ import { useAuth } from "../context/AuthContext";
 
 const StatCard = ({ label, value, tone }) => {
   const tones = {
-    slate: "border-slate-200 bg-white text-slate-950",
-    green: "border-emerald-200 bg-emerald-50 text-emerald-800",
-    blue: "border-sky-200 bg-sky-50 text-sky-800",
-    red: "border-rose-200 bg-rose-50 text-rose-800"
+    slate: "border-slate-200 bg-white text-slate-950 dark:border-slate-800 dark:bg-slate-900 dark:text-white",
+    green: "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-900/70 dark:bg-emerald-950/50 dark:text-emerald-200",
+    blue: "border-sky-200 bg-sky-50 text-sky-800 dark:border-sky-900/70 dark:bg-sky-950/50 dark:text-sky-200",
+    red: "border-rose-200 bg-rose-50 text-rose-800 dark:border-rose-900/70 dark:bg-rose-950/50 dark:text-rose-200"
   };
 
   return (
-    <div className={`rounded-md border p-5 shadow-sm ${tones[tone]}`}>
+    <div className={`rounded-md border p-5 shadow-sm transition-colors duration-300 ${tones[tone]}`}>
       <p className="text-sm font-semibold opacity-75">{label}</p>
       <p className="mt-2 text-3xl font-bold">{value}</p>
     </div>
@@ -83,7 +83,7 @@ const Dashboard = () => {
         <StatCard label="Overdue" value={stats.overdue} tone="red" />
       </div>
 
-      <section className="mt-6 rounded-md border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur">
+      <section className="mt-6 rounded-md border border-slate-200 bg-white/90 p-4 shadow-sm backdrop-blur transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900/90">
         <div className="grid gap-3 md:grid-cols-3">
           <select className="form-input" value={filters.status} onChange={(event) => setFilters({ ...filters, status: event.target.value })}>
             <option value="">All statuses</option>
@@ -109,10 +109,10 @@ const Dashboard = () => {
         {tasks.length === 0 ? (
           <EmptyState title="No tasks found" message="Tasks matching the selected filters will appear here." />
         ) : (
-          <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-soft">
+          <div className="overflow-hidden rounded-md border border-slate-200 bg-white shadow-soft transition-colors duration-300 dark:border-slate-800 dark:bg-slate-900">
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-slate-200 text-sm">
-                <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
+              <table className="min-w-full divide-y divide-slate-200 text-sm dark:divide-slate-800">
+                <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500 dark:bg-slate-800/80 dark:text-slate-400">
                   <tr>
                     <th className="px-4 py-3">Task</th>
                     <th className="px-4 py-3">Project</th>
@@ -122,15 +122,15 @@ const Dashboard = () => {
                     <th className="px-4 py-3">Due</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                   {tasks.map((task) => (
-                    <tr key={task._id} className={task.status === "Overdue" ? "bg-red-50" : "bg-white"}>
-                      <td className="px-4 py-3 font-semibold text-slate-900">{task.title}</td>
-                      <td className="px-4 py-3 text-slate-600">{task.project?.name}</td>
-                      <td className="px-4 py-3 text-slate-600">{task.assignedTo?.name}</td>
+                    <tr key={task._id} className={task.status === "Overdue" ? "bg-red-50 dark:bg-red-950/30" : "bg-white dark:bg-slate-900"}>
+                      <td className="px-4 py-3 font-semibold text-slate-900 dark:text-slate-100">{task.title}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{task.project?.name}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{task.assignedTo?.name}</td>
                       <td className="px-4 py-3"><Badge type="priority" value={task.priority} /></td>
                       <td className="px-4 py-3"><Badge value={task.status} /></td>
-                      <td className="px-4 py-3 text-slate-600">{new Date(task.dueDate).toLocaleDateString()}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{new Date(task.dueDate).toLocaleDateString()}</td>
                     </tr>
                   ))}
                 </tbody>
