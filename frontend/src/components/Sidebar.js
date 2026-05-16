@@ -1,23 +1,16 @@
-import {
-  ArrowRightOnRectangleIcon,
-  ClipboardDocumentCheckIcon,
-  FolderIcon,
-  Squares2X2Icon
-} from "@heroicons/react/24/outline";
+import { CheckSquare, Folder, Home, LogOut, Users, Zap } from "lucide-react";
 import { NavLink, useNavigate } from "react-router-dom";
-import BrandLogo from "./BrandLogo";
 import { useAuth } from "../context/AuthContext";
-import { useTheme } from "../context/ThemeContext";
 
 const links = [
-  { to: "/dashboard", label: "Dashboard", icon: Squares2X2Icon },
-  { to: "/projects", label: "Projects", icon: FolderIcon },
-  { to: "/tasks", label: "Tasks", icon: ClipboardDocumentCheckIcon }
+  { to: "/dashboard", label: "Dashboard", icon: Home },
+  { to: "/projects", label: "Projects", icon: Folder },
+  { to: "/tasks", label: "My Tasks", icon: CheckSquare },
+  { to: "/teams", label: "Team", icon: Users }
 ];
 
 const Sidebar = () => {
   const { logout, user } = useAuth();
-  const { theme, setTheme, themes } = useTheme();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -25,57 +18,55 @@ const Sidebar = () => {
     navigate("/login");
   };
 
+  const initial = user?.name?.charAt(0)?.toUpperCase() || "J";
+
   return (
-    <aside className="border-b border-slate-200 bg-white/92 backdrop-blur lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:w-72 lg:border-b-0 lg:border-r">
-      <div className="flex h-full flex-col px-4 py-4">
-        <div className="mb-5">
-          <BrandLogo />
-          <div className="mt-3 inline-flex rounded-md bg-slate-100 px-2 py-1 text-xs font-bold uppercase tracking-wide text-slate-500">{user?.role}</div>
+    <aside className="border-slate-800 bg-[#1b1f2b] text-slate-300 lg:fixed lg:inset-y-0 lg:left-0 lg:z-40 lg:w-80 lg:border-r">
+      <div className="flex min-h-full flex-col">
+        <div className="flex h-[92px] items-center gap-4 border-b border-slate-800 px-8">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#5268ff] text-white shadow-[0_12px_30px_rgba(82,104,255,0.4)]">
+            <Zap className="h-5 w-5" />
+          </div>
+          <div className="text-xl font-bold text-white">TaskFlow</div>
         </div>
 
-        <nav className="grid grid-cols-3 gap-2 lg:grid-cols-1">
+        <nav className="space-y-3 px-4 py-8">
           {links.map(({ to, label, icon: Icon }) => (
             <NavLink
               key={to}
               to={to}
               className={({ isActive }) =>
-                `flex items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-semibold transition lg:justify-start ${
-                  isActive ? "text-white shadow-sm" : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                `flex items-center gap-4 rounded-lg border px-4 py-3 text-lg font-semibold transition ${
+                  isActive
+                    ? "border-[#40539d] bg-[#29345f] text-[#6f86ff]"
+                    : "border-transparent text-slate-400 hover:bg-[#222839] hover:text-slate-100"
                 }`
               }
-              style={({ isActive }) => (isActive ? { background: "var(--accent)" } : undefined)}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="h-6 w-6" />
               <span>{label}</span>
             </NavLink>
           ))}
         </nav>
 
-        <div className="mt-5 rounded-md border border-slate-200 bg-slate-50 p-3">
-          <div className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">Theme</div>
-          <div className="grid grid-cols-4 gap-2">
-            {themes.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                className={`h-9 rounded-md border border-slate-200 bg-white p-1 transition hover:scale-105 ${theme === item.id ? "theme-active" : ""}`}
-                onClick={() => setTheme(item.id)}
-                title={item.label}
-                aria-label={`Use ${item.label} theme`}
-              >
-                <span className={`block h-full rounded ${item.swatch}`} />
-              </button>
-            ))}
+        <div className="mt-auto border-t border-slate-800 p-4">
+          <div className="flex items-center gap-3 rounded-lg bg-[#242a42] p-4">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-teal-500 text-sm font-bold text-white shadow-[0_0_24px_rgba(20,184,166,0.35)]">
+              {initial}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-base font-bold text-white">{user?.name || "jordan"}</div>
+              <div className="text-sm text-slate-400">{user?.role || "Member"}</div>
+            </div>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="rounded-md p-2 text-slate-500 transition hover:bg-slate-700/60 hover:text-white"
+              aria-label="Logout"
+            >
+              <LogOut className="h-5 w-5" />
+            </button>
           </div>
-        </div>
-
-        <div className="mt-4 rounded-md border border-slate-200 bg-slate-50 p-3 lg:mt-auto">
-          <div className="truncate text-sm font-semibold text-slate-900">{user?.name}</div>
-          <div className="truncate text-xs text-slate-500">{user?.email}</div>
-          <button type="button" onClick={handleLogout} className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100">
-            <ArrowRightOnRectangleIcon className="h-5 w-5" />
-            Logout
-          </button>
         </div>
       </div>
     </aside>
