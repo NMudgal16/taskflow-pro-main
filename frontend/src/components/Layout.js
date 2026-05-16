@@ -3,10 +3,10 @@ import Sidebar from "./Sidebar";
 
 const Layout = () => {
   return (
-    <div className="app-shell min-h-screen">
+    <div className="min-h-screen bg-[#0f1118] text-slate-200">
       <Sidebar />
-      <main className="lg:pl-72">
-        <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+      <main className="lg:pl-80">
+        <div className="min-h-screen px-6 py-10 sm:px-10">
           <Outlet />
         </div>
       </main>

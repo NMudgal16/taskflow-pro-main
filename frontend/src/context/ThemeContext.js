@@ -11,13 +11,21 @@ const ThemeContext = createContext(null);
 
 export const ThemeProvider = ({ children }) => {
   const [theme, setTheme] = useState(() => localStorage.getItem("theme") || "aurora");
+  const [mode, setMode] = useState(() => localStorage.getItem("themeMode") || "light");
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     localStorage.setItem("theme", theme);
   }, [theme]);
 
-  const value = useMemo(() => ({ theme, setTheme, themes }), [theme]);
+  useEffect(() => {
+    document.documentElement.classList.toggle("dark", mode === "dark");
+    localStorage.setItem("themeMode", mode);
+  }, [mode]);
+
+  const toggleMode = () => setMode((current) => (current === "dark" ? "light" : "dark"));
+
+  const value = useMemo(() => ({ mode, setMode, theme, setTheme, themes, toggleMode }), [mode, theme]);
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };

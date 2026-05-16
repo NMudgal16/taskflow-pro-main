@@ -9,6 +9,7 @@ const rateLimit = require("express-rate-limit");
 const authRoutes = require("./routes/authRoutes");
 const projectRoutes = require("./routes/projectRoutes");
 const taskRoutes = require("./routes/taskRoutes");
+const User = require("./models/User");
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -42,16 +43,55 @@ app.use((error, req, res, next) => {
   res.status(500).json({ message: "Unexpected server error", error: error.message });
 });
 
+const getMongoUri = () => {
+  const uri = process.env.MONGODB_URI;
+  const isPlaceholder = uri && (uri.includes("<password>") || uri.includes("<REPLACE_WITH_PASSWORD>") || uri.includes("<db_password>") || uri.includes("<"));
+
+  if (isPlaceholder) {
+    console.warn("Warning: backend/.env contains a placeholder MongoDB URI. Falling back to local MongoDB URI.");
+    return "mongodb://127.0.0.1:27017/taskflow";
+  }
+
+  return uri;
+};
+
+const isPlaceholderValue = (value) => {
+  return !value || value.includes("<") || value.includes("REPLACE_WITH") || value.includes("db_password");
+};
+
+const ensureAdminUser = async () => {
+  const adminName = process.env.ADMIN_NAME || "Administrator";
+  const adminEmail = process.env.ADMIN_EMAIL;
+  const adminPassword = process.env.ADMIN_PASSWORD;
+
+  if (isPlaceholderValue(adminEmail) || isPlaceholderValue(adminPassword)) {
+    return;
+  }
+
+  const existingUser = await User.findOne({ email: adminEmail.toLowerCase() });
+  if (!existingUser) {
+    await User.create({ name: adminName, email: adminEmail, password: adminPassword, role: "admin" });
+    console.log(`Admin user created: ${adminEmail}`);
+  } else if (existingUser.role !== "admin") {
+    existingUser.role = "admin";
+    await existingUser.save();
+    console.log(`Existing user promoted to admin: ${adminEmail}`);
+  }
+};
+
 const startServer = async () => {
   try {
-    if (!process.env.MONGODB_URI) {
+    const mongoUri = getMongoUri();
+
+    if (!mongoUri) {
       throw new Error("MONGODB_URI is required");
     }
     if (!process.env.JWT_SECRET) {
       throw new Error("JWT_SECRET is required");
     }
 
-    await mongoose.connect(process.env.MONGODB_URI);
+    await mongoose.connect(mongoUri);
+    await ensureAdminUser();
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });

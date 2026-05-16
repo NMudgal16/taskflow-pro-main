@@ -29,36 +29,42 @@ How To Run Locally
 
 1. Clone or open the project folder.
 
-2. Install backend dependencies:
-   cd backend
-   npm install
+2. Install Node.js 18 or newer from https://nodejs.org if node/npm are not already installed.
 
-3. Create backend environment file:
+3. Install all project dependencies from the root folder:
+   npm run install:all
+
+4. Create backend environment file:
+   cd backend
    copy .env.example .env
 
-4. Add real backend values in backend/.env:
+5. Add real backend values in backend/.env:
    PORT=5000
    MONGODB_URI=your_mongodb_atlas_uri
    JWT_SECRET=your_jwt_secret
 
-5. Start the backend:
-   npm run dev
-
-6. Install frontend dependencies from a second terminal:
-   cd frontend
-   npm install
-
-7. Create frontend environment file:
+6. Create frontend environment file:
+   cd ../frontend
    copy .env.example .env
 
-8. Add local frontend API value in frontend/.env:
+7. Add local frontend API value in frontend/.env:
    REACT_APP_API_URL=http://localhost:5000
 
-9. Start the frontend:
-   npm start
+8. Start the frontend and backend together from the root folder:
+   cd ..
+   npm run dev
 
-10. Open:
+9. Open:
    http://localhost:3000
+
+Optional separate commands:
+- Backend only:
+   cd backend
+   npm run dev
+
+- Frontend only:
+   cd frontend
+   npm start
 
 API Routes
 - POST /api/auth/register

@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, useRef } from "react";
 import toast from "react-hot-toast";
 import { motion, useScroll, useTransform } from "framer-motion";
-import { Canvas, useFrame } from "@react-three/fiber";
-import { OrbitControls, Sphere, Box, Torus, Environment, Line } from "@react-three/drei";
-import { EffectComposer, Bloom } from "@react-three/postprocessing";
 import {
   CheckCircle,
   Clock3,
@@ -144,78 +141,6 @@ const ProgressRing = ({ value, label, color, delay }) => {
   );
 };
 
-// 3D Bar Chart Visualization
-const BarChart3D = ({ data }) => {
-  const barsRef = useRef();
-  
-  useFrame(({ clock }) => {
-    if (barsRef.current) {
-      barsRef.current.children.forEach((bar, i) => {
-        const offset = Math.sin(clock.getElapsedTime() * 2 + i) * 0.05;
-        bar.position.y = data[i].value / 15 + offset;
-      });
-    }
-  });
-
-  return (
-    <group ref={barsRef}>
-      {data.map((item, i) => (
-        <Box
-          key={i}
-          position={[i - 2, 0, 0]}
-          args={[0.4, item.value / 10, 0.4]}
-        >
-          <meshStandardMaterial
-            color={item.color}
-            emissive={item.color}
-            emissiveIntensity={0.3}
-            metalness={0.8}
-            roughness={0.2}
-          />
-        </Box>
-      ))}
-    </group>
-  );
-};
-
-// 3D Scene Background
-const Scene3D = () => {
-  const groupRef = useRef();
-  
-  useFrame(({ clock }) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y = clock.getElapsedTime() * 0.05;
-      groupRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.1) * 0.1;
-    }
-  });
-
-  return (
-    <>
-      <ambientLight intensity={0.3} />
-      <pointLight position={[5, 5, 5]} intensity={1} color="#06b6d4" />
-      <pointLight position={[-5, -3, 3]} intensity={0.5} color="#d946ef" />
-      <spotLight position={[0, 5, 5]} intensity={0.8} angle={0.5} penumbra={1} />
-      
-      <group ref={groupRef}>
-        <Sphere position={[-3, 2, -5]} args={[0.8, 32, 32]}>
-          <meshStandardMaterial color="#06b6d4" emissive="#06b6d4" emissiveIntensity={0.4} metalness={0.8} />
-        </Sphere>
-        <Box position={[2, -1, -6]} args={[0.6, 0.6, 0.6]}>
-          <meshStandardMaterial color="#d946ef" emissive="#d946ef" emissiveIntensity={0.3} metalness={0.7} />
-        </Box>
-        <Torus position={[0, 0, -8]} args={[1.5, 0.1, 64, 200]} rotation={[Math.PI / 2, 0, 0]}>
-          <meshStandardMaterial color="#f59e0b" emissive="#f59e0b" emissiveIntensity={0.5} />
-        </Torus>
-      </group>
-      
-      <EffectComposer>
-        <Bloom intensity={0.5} luminanceThreshold={0.2} luminanceSmoothing={0.8} />
-      </EffectComposer>
-      <Environment preset="night" />
-    </>
-  );
-};
-
 // Analytics Chart Component
 const AnalyticsChart = ({ tasks }) => {
   const priorityData = useMemo(() => {
@@ -247,22 +172,25 @@ const AnalyticsChart = ({ tasks }) => {
       transition={{ delay: 0.6 }}
       className="mt-8 grid gap-6 lg:grid-cols-2"
     >
-      {/* 3D Bar Chart */}
+      {/* Weekly Activity */}
       <div className="relative overflow-hidden rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-2xl">
         <h3 className="mb-4 text-lg font-semibold text-white flex items-center gap-2">
-          <BarChart3D className="h-5 w-5 text-cyan-400" />
+          <BarChart3 className="h-5 w-5 text-cyan-400" />
           Weekly Activity
         </h3>
-        <div className="h-64">
-          <Canvas camera={{ position: [0, 3, 8], fov: 45 }}>
-            <BarChart3D data={weeklyData} />
-            <OrbitControls enableZoom={false} enablePan={false} autoRotate autoRotateSpeed={0.5} />
-          </Canvas>
-        </div>
-        <div className="mt-4 flex justify-center gap-4">
+        <div className="grid gap-4">
           {weeklyData.map((item, i) => (
-            <div key={i} className="text-center">
-              <div className="text-xs text-slate-400">{item.day}</div>
+            <div key={i} className="space-y-2">
+              <div className="flex justify-between text-sm text-slate-300">
+                <span>{item.day}</span>
+                <span>{item.value}%</span>
+              </div>
+              <div className="h-4 rounded-full bg-white/10">
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${item.value}%`, backgroundColor: item.color }}
+                />
+              </div>
             </div>
           ))}
         </div>
@@ -427,11 +355,11 @@ const Dashboard = () => {
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#0b1120] px-4 py-6 text-white md:px-6">
-      {/* 3D Background */}
-      <div className="fixed inset-0 z-0">
-        <Canvas camera={{ position: [0, 0, 10], fov: 50 }}>
-          <Scene3D />
-        </Canvas>
+      {/* Background glow */}
+      <div className="fixed inset-0 z-0 overflow-hidden">
+        <div className="absolute -top-40 -right-40 h-96 w-96 rounded-full bg-cyan-500/20 blur-3xl" />
+        <div className="absolute -bottom-40 -left-40 h-96 w-96 rounded-full bg-fuchsia-500/20 blur-3xl" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.15),_transparent_40%),radial-gradient(circle_at_bottom,_rgba(236,72,153,0.12),_transparent_40%)]" />
       </div>
 
       {/* Animated gradient overlays */}
