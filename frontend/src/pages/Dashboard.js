@@ -278,7 +278,7 @@ const ProductivityScore = ({ score = 0 }) => {
 };
 
 const Dashboard = () => {
-  const { request, user } = useAuth();
+  const { request } = useAuth();
   const { scrollYProgress } = useScroll();
   const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
 

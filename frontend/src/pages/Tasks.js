@@ -157,7 +157,7 @@ const Tasks = () => {
     return projects.filter((project) =>
       project.members?.some((member) => String(member._id) === String(user?.id))
     );
-  }, [isAdmin, projects, user?.id]);
+  }, [isAdmin, projects, user]);
 
   const memberOptions = useMemo(() => {
     if (!form.project || !selectedProject) return [];
