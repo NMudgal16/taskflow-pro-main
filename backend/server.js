@@ -9,6 +9,8 @@ const rateLimit = require("express-rate-limit");
 const authRoutes = require("./routes/authRoutes");
 const projectRoutes = require("./routes/projectRoutes");
 const taskRoutes = require("./routes/taskRoutes");
+const dashboardRoutes = require("./routes/dashboardRoutes");
+const adminRoutes = require("./routes/adminRoutes");
 const User = require("./models/User");
 
 const app = express();
@@ -20,11 +22,15 @@ app.use(cors({
   credentials: true
 }));
 app.use(express.json({ limit: "1mb" }));
+const isProduction = process.env.NODE_ENV === "production";
+
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 300,
+  max: isProduction ? 500 : 5000,
   standardHeaders: true,
-  legacyHeaders: false
+  legacyHeaders: false,
+  message: { message: "Too many requests, please try again later." },
+  skip: () => !isProduction,
 }));
 
 app.get("/", (req, res) => {
@@ -34,6 +40,8 @@ app.get("/", (req, res) => {
 app.use("/api/auth", authRoutes);
 app.use("/api/projects", projectRoutes);
 app.use("/api/tasks", taskRoutes);
+app.use("/api/dashboard", dashboardRoutes);
+app.use("/api/admin", adminRoutes);
 
 app.use((req, res) => {
   res.status(404).json({ message: "Route not found" });

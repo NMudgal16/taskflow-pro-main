@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Folder, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
 import toast from "react-hot-toast";
 import LoadingState from "../components/LoadingState";
 import { useAuth } from "../context/AuthContext";
+import useRealtimePolling from "../hooks/useRealtimePolling";
+import usePollingErrorHandler from "../hooks/usePollingErrorHandler";
 
 const filters = ["All", "active", "on hold", "completed", "cancelled"];
 
@@ -73,8 +75,6 @@ const ProjectFormModal = ({ form, saving, setForm, onClose, onSubmit }) => (
 
 const Projects = () => {
   const { isAdmin, request } = useAuth();
-  const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
@@ -82,20 +82,18 @@ const Projects = () => {
   const [form, setForm] = useState({ name: "", description: "", status: "active", priority: "Medium", deadline: "", tags: "" });
   const [memberEmails, setMemberEmails] = useState({});
 
-  const fetchProjects = useCallback(async () => {
-    setLoading(true);
-    try {
-      setProjects(await request("/api/projects"));
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
-  }, [request]);
+  const fetchProjects = useCallback(
+    () => request("/api/projects"),
+    [request]
+  );
 
-  useEffect(() => {
-    fetchProjects();
-  }, [fetchProjects]);
+  const handlePollError = usePollingErrorHandler("Could not load projects");
+
+  const { data: projectsData, loading, refresh } = useRealtimePolling(fetchProjects, {
+    onError: handlePollError,
+  });
+
+  const projects = projectsData ?? [];
 
   const filteredProjects = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -115,7 +113,7 @@ const Projects = () => {
       setForm({ name: "", description: "", status: "active", priority: "Medium", deadline: "", tags: "" });
       setShowForm(false);
       toast.success("Project created");
-      fetchProjects();
+      refresh();
     } catch (error) {
       toast.error(error.message);
     } finally {
@@ -131,7 +129,7 @@ const Projects = () => {
       });
       setMemberEmails({ ...memberEmails, [projectId]: "" });
       toast.success("Member added");
-      fetchProjects();
+      refresh();
     } catch (error) {
       toast.error(error.message);
     }
@@ -141,7 +139,7 @@ const Projects = () => {
     try {
       await request(`/api/projects/${projectId}`, { method: "DELETE" });
       toast.success("Project deleted");
-      fetchProjects();
+      refresh();
     } catch (error) {
       toast.error(error.message);
     }
@@ -151,13 +149,13 @@ const Projects = () => {
     try {
       await request(`/api/projects/${projectId}/members/${memberId}`, { method: "DELETE" });
       toast.success("Member removed");
-      fetchProjects();
+      refresh();
     } catch (error) {
       toast.error(error.message);
     }
   };
 
-  if (loading) return <LoadingState label="Loading projects..." />;
+  if (loading && !projectsData) return <LoadingState label="Loading projects..." />;
 
   return (
     <div className="min-h-[calc(100vh-5rem)] bg-[#0f1118] text-slate-200">

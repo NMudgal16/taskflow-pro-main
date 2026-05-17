@@ -4,6 +4,8 @@ import toast from "react-hot-toast";
 import Badge from "../components/Badge";
 import LoadingState from "../components/LoadingState";
 import { useAuth } from "../context/AuthContext";
+import useRealtimePolling from "../hooks/useRealtimePolling";
+import usePollingErrorHandler from "../hooks/usePollingErrorHandler";
 
 const initialForm = {
   title: "",
@@ -15,10 +17,19 @@ const initialForm = {
   dueDate: ""
 };
 
-const statusOptions = ["All Status", "Todo", "In Progress", "Review", "Done"];
+const statusOptions = ["All Status", "Todo", "In Progress", "Done", "Overdue"];
 const priorityOptions = ["All Priority", "Low", "Medium", "High"];
 
-const TaskFormModal = ({ form, projects, saving, selectedProject, setForm, onClose, onSubmit }) => (
+const TaskFormModal = ({
+  form,
+  projects,
+  saving,
+  selectedProject,
+  memberOptions,
+  setForm,
+  onClose,
+  onSubmit,
+}) => (
   <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4 py-8 backdrop-blur-sm">
     <form onSubmit={onSubmit} className="w-full max-w-[632px] overflow-hidden rounded-2xl border border-[#303852] bg-[#1b1f2b] shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
       <div className="flex items-center justify-between border-b border-[#303852] px-6 py-5">
@@ -50,10 +61,25 @@ const TaskFormModal = ({ form, projects, saving, selectedProject, setForm, onClo
 
           <label className="block">
             <span className="text-sm font-bold uppercase tracking-wider text-slate-300">Assignee</span>
-            <select className="mt-2 h-[52px] w-full rounded-lg border border-[#303852] bg-[#252b40] px-5 text-lg font-bold text-white outline-none transition focus:border-[#5268ff] focus:ring-2 focus:ring-[#5268ff]/30 disabled:opacity-50" value={form.assignedTo} onChange={(event) => setForm({ ...form, assignedTo: event.target.value })} required disabled={!selectedProject}>
+            <select
+              className="mt-2 h-[52px] w-full rounded-lg border border-[#303852] bg-[#252b40] px-5 text-lg font-bold text-white outline-none transition focus:border-[#5268ff] focus:ring-2 focus:ring-[#5268ff]/30 disabled:opacity-50"
+              value={form.assignedTo}
+              onChange={(event) => setForm({ ...form, assignedTo: event.target.value })}
+              required
+              disabled={!form.project || memberOptions.length === 0}
+            >
               <option value="">Select assignee</option>
-              {selectedProject?.members?.map((member) => <option key={member._id} value={member._id}>{member.name} ({member.email})</option>)}
+              {memberOptions.map((member) => (
+                <option key={member._id} value={member._id}>
+                  {member.name} ({member.email})
+                </option>
+              ))}
             </select>
+            {form.project && memberOptions.length === 0 && (
+              <p className="mt-2 text-sm text-amber-400">
+                No member accounts found. Sign up a user with the Member role, then assign them here.
+              </p>
+            )}
           </label>
 
           <label className="block">
@@ -95,9 +121,8 @@ const TaskFormModal = ({ form, projects, saving, selectedProject, setForm, onClo
 
 const Tasks = () => {
   const { isAdmin, request } = useAuth();
-  const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [allMembers, setAllMembers] = useState([]);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [search, setSearch] = useState("");
@@ -110,25 +135,52 @@ const Tasks = () => {
     return projects.find((project) => project._id === form.project);
   }, [projects, form.project]);
 
-  const fetchData = useCallback(async () => {
-    setLoading(true);
+  const memberOptions = useMemo(() => {
+    if (!form.project) return [];
+    return allMembers;
+  }, [allMembers, form.project]);
+
+  const loadFormData = useCallback(async () => {
     try {
-      const [taskData, projectData] = await Promise.all([
-        request("/api/tasks"),
-        request("/api/projects")
+      const [projectData, members] = await Promise.all([
+        request("/api/projects"),
+        isAdmin ? request("/api/admin/users") : Promise.resolve([]),
       ]);
-      setTasks(taskData);
       setProjects(projectData);
+      setAllMembers(Array.isArray(members) ? members : []);
     } catch (error) {
       toast.error(error.message);
-    } finally {
-      setLoading(false);
     }
-  }, [request]);
+  }, [isAdmin, request]);
+
+  const openTaskForm = () => {
+    if (!isAdmin) {
+      toast.error("Only admins can create tasks. Log in with an admin account.");
+      return;
+    }
+    loadFormData();
+    setShowForm(true);
+  };
+
+  const fetchTasks = useCallback(
+    () => request("/api/tasks"),
+    [request]
+  );
+
+  const handlePollError = usePollingErrorHandler("Could not load tasks");
+
+  const { data: tasksData, loading, refresh } = useRealtimePolling(
+    fetchTasks,
+    { onError: handlePollError }
+  );
+
+  const tasks = tasksData ?? [];
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    request("/api/projects")
+      .then(setProjects)
+      .catch((error) => toast.error(error.message));
+  }, [request]);
 
   const filteredTasks = useMemo(() => {
     const query = search.trim().toLowerCase();
@@ -143,15 +195,37 @@ const Tasks = () => {
 
   const createTask = async (event) => {
     event.preventDefault();
+
+    if (!isAdmin) {
+      toast.error("Only admins can create tasks.");
+      return;
+    }
+
+    if (!form.assignedTo) {
+      toast.error("Please select an assignee (member account).");
+      return;
+    }
+
     setSaving(true);
     try {
-      await request("/api/tasks", { method: "POST", body: JSON.stringify(form) });
+      const payload = {
+        title: form.title.trim(),
+        description: form.description.trim(),
+        project: form.project,
+        assignedTo: form.assignedTo,
+        priority: form.priority,
+        status: form.status,
+        dueDate: new Date(`${form.dueDate}T12:00:00`).toISOString(),
+      };
+
+      await request("/api/tasks", { method: "POST", body: JSON.stringify(payload) });
       setForm(initialForm);
       setShowForm(false);
       toast.success("Task created");
-      fetchData();
+      refresh();
+      loadFormData();
     } catch (error) {
-      toast.error(error.message);
+      toast.error(error.message || "Could not create task");
     } finally {
       setSaving(false);
     }
@@ -161,7 +235,7 @@ const Tasks = () => {
     try {
       await request(`/api/tasks/${taskId}`, { method: "PUT", body: JSON.stringify({ status }) });
       toast.success("Task updated");
-      fetchData();
+      refresh();
     } catch (error) {
       toast.error(error.message);
     }
@@ -171,13 +245,13 @@ const Tasks = () => {
     try {
       await request(`/api/tasks/${taskId}`, { method: "DELETE" });
       toast.success("Task deleted");
-      fetchData();
+      refresh();
     } catch (error) {
       toast.error(error.message);
     }
   };
 
-  if (loading) return <LoadingState label="Loading tasks..." />;
+  if (loading && !tasksData) return <LoadingState label="Loading tasks..." />;
 
   return (
     <div className="min-h-[calc(100vh-5rem)] bg-[#0f1118] text-slate-200">
@@ -186,14 +260,16 @@ const Tasks = () => {
           <h1 className="text-3xl font-bold tracking-tight text-white">Tasks</h1>
           <p className="mt-2 text-lg font-medium text-slate-500">{tasks.length} tasks</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowForm((current) => !current)}
-          className="inline-flex items-center justify-center gap-3 rounded-lg bg-[#5268ff] px-6 py-3 text-lg font-bold text-white shadow-[0_10px_24px_rgba(82,104,255,0.35)] transition hover:bg-[#6377ff]"
-        >
-          <Plus className="h-5 w-5" />
-          New Task
-        </button>
+        {isAdmin && (
+          <button
+            type="button"
+            onClick={openTaskForm}
+            className="inline-flex items-center justify-center gap-3 rounded-lg bg-[#5268ff] px-6 py-3 text-lg font-bold text-white shadow-[0_10px_24px_rgba(82,104,255,0.35)] transition hover:bg-[#6377ff]"
+          >
+            <Plus className="h-5 w-5" />
+            New Task
+          </button>
+        )}
       </header>
 
       <div className="mt-8 flex flex-col gap-4 xl:flex-row xl:items-center">
@@ -228,12 +304,13 @@ const Tasks = () => {
         </button>
       </div>
 
-      {showForm && (
+      {showForm && isAdmin && (
         <TaskFormModal
           form={form}
           projects={projects}
           saving={saving}
           selectedProject={selectedProject}
+          memberOptions={memberOptions}
           setForm={setForm}
           onClose={() => setShowForm(false)}
           onSubmit={createTask}
@@ -244,14 +321,16 @@ const Tasks = () => {
         <section className="flex min-h-[520px] items-center justify-center text-center">
           <div>
             <h2 className="text-2xl font-semibold text-slate-500">No tasks found</h2>
-            <button
-              type="button"
-              onClick={() => setShowForm(true)}
-              className="mt-6 inline-flex items-center justify-center gap-3 rounded-lg bg-[#5268ff] px-6 py-3 text-lg font-bold text-white shadow-[0_12px_30px_rgba(82,104,255,0.35)] transition hover:bg-[#6377ff]"
-            >
-              <Plus className="h-5 w-5" />
-              Create Task
-            </button>
+            {isAdmin && (
+              <button
+                type="button"
+                onClick={openTaskForm}
+                className="mt-6 inline-flex items-center justify-center gap-3 rounded-lg bg-[#5268ff] px-6 py-3 text-lg font-bold text-white shadow-[0_12px_30px_rgba(82,104,255,0.35)] transition hover:bg-[#6377ff]"
+              >
+                <Plus className="h-5 w-5" />
+                Create Task
+              </button>
+            )}
           </div>
         </section>
       ) : (

@@ -35,12 +35,21 @@ const getTasks = async (req, res) => {
   }
 };
 
+const parseDueDate = (value) => {
+  if (!value) return null;
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed;
+};
+
 const createTask = async (req, res) => {
   try {
     const { title, description, project, assignedTo, priority, status, dueDate } = req.body;
 
-    if (!title || !description || !project || !assignedTo || !priority || !status || !dueDate) {
-      return res.status(400).json({ message: "All task fields are required" });
+    if (!title?.trim() || !description?.trim() || !project || !assignedTo || !priority || !status || !dueDate) {
+      return res.status(400).json({
+        message: "Title, description, project, assignee, priority, status, and due date are required",
+      });
     }
 
     if (!isValidId(project) || !isValidId(assignedTo)) {
@@ -51,30 +60,45 @@ const createTask = async (req, res) => {
       return res.status(400).json({ message: "Invalid priority or status value" });
     }
 
+    const parsedDueDate = parseDueDate(dueDate);
+    if (!parsedDueDate) {
+      return res.status(400).json({ message: "Invalid due date" });
+    }
+
     const targetProject = await Project.findById(project);
     if (!targetProject) {
       return res.status(404).json({ message: "Project not found" });
     }
 
     const assignee = await User.findById(assignedTo);
-    if (!assignee || assignee.role !== "member") {
-      return res.status(404).json({ message: "Assignee member was not found" });
+    if (!assignee) {
+      return res.status(404).json({ message: "Assignee user was not found" });
     }
 
-    const isProjectMember = targetProject.members.some((memberId) => memberId.equals(assignedTo));
+    if (assignee.role !== "member") {
+      return res.status(400).json({
+        message: "Tasks must be assigned to a member account. Register a user with the Member role, or add them to the project from the Projects page.",
+      });
+    }
+
+    const isProjectMember = targetProject.members.some(
+      (memberId) => String(memberId) === String(assignedTo)
+    );
+
     if (!isProjectMember) {
-      return res.status(400).json({ message: "Cannot assign task to a user who is not in the project" });
+      targetProject.members.push(assignee._id);
+      await targetProject.save();
     }
 
     const task = await Task.create({
-      title,
-      description,
+      title: title.trim(),
+      description: description.trim(),
       project,
       assignedTo,
       priority,
       status,
-      dueDate,
-      createdBy: req.user._id
+      dueDate: parsedDueDate,
+      createdBy: req.user._id,
     });
 
     await refreshOverdueTasks();

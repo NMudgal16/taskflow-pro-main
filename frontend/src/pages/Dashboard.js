@@ -8,14 +8,12 @@ import {
   FolderKanban,
   TrendingUp,
   TrendingDown,
-  Calendar,
-  Users,
-  Star,
   BarChart3,
   PieChart,
   Activity,
   Zap,
   Sparkles,
+  Radio,
 } from "lucide-react";
 
 import Badge from "../components/Badge";
@@ -23,6 +21,8 @@ import EmptyState from "../components/EmptyState";
 import LoadingState from "../components/LoadingState";
 import PageHeader from "../components/PageHeader";
 import { useAuth } from "../context/AuthContext";
+import useRealtimePolling from "../hooks/useRealtimePolling";
+import usePollingErrorHandler from "../hooks/usePollingErrorHandler";
 
 // 3D Stats Card with tilt effect
 const StatCard3D = ({ label, value, icon, gradient, trend, trendValue, delay }) => {
@@ -69,7 +69,7 @@ const StatCard3D = ({ label, value, icon, gradient, trend, trendValue, delay }) 
           <div>
             <p className="text-sm font-medium text-white/70">{label}</p>
             <h2 className="mt-2 text-4xl font-black text-white">{value}</h2>
-            {trend && (
+            {trend && trendValue && (
               <div className="mt-2 flex items-center gap-1">
                 {trend === "up" ? (
                   <TrendingUp className="h-4 w-4 text-emerald-400" />
@@ -142,28 +142,14 @@ const ProgressRing = ({ value, label, color, delay }) => {
 };
 
 // Analytics Chart Component
-const AnalyticsChart = ({ tasks }) => {
-  const priorityData = useMemo(() => {
-    const high = tasks.filter(t => t.priority === "High").length;
-    const medium = tasks.filter(t => t.priority === "Medium").length;
-    const low = tasks.filter(t => t.priority === "Low").length;
-    const total = tasks.length || 1;
-    return [
-      { label: "High", value: (high / total) * 100, color: "#ef4444", count: high },
-      { label: "Medium", value: (medium / total) * 100, color: "#f59e0b", count: medium },
-      { label: "Low", value: (low / total) * 100, color: "#10b981", count: low },
-    ];
-  }, [tasks]);
+const AnalyticsChart = ({ priorityDistribution = [], weeklyActivity = [] }) => {
+  const priorityData = priorityDistribution.length
+    ? priorityDistribution
+    : [{ label: "High", value: 0, color: "#ef4444", count: 0 }];
 
-  const weeklyData = [
-    { day: "Mon", value: 65, color: "#06b6d4" },
-    { day: "Tue", value: 72, color: "#8b5cf6" },
-    { day: "Wed", value: 58, color: "#06b6d4" },
-    { day: "Thu", value: 84, color: "#8b5cf6" },
-    { day: "Fri", value: 78, color: "#d946ef" },
-    { day: "Sat", value: 45, color: "#06b6d4" },
-    { day: "Sun", value: 52, color: "#f59e0b" },
-  ];
+  const weeklyData = weeklyActivity.length
+    ? weeklyActivity
+    : [{ day: "—", value: 0, color: "#06b6d4", count: 0 }];
 
   return (
     <motion.div
@@ -233,13 +219,7 @@ const AnalyticsChart = ({ tasks }) => {
 };
 
 // Productivity Score Component
-const ProductivityScore = ({ tasks }) => {
-  const score = useMemo(() => {
-    const completed = tasks.filter(t => t.status === "Done").length;
-    const total = tasks.length || 1;
-    const onTime = tasks.filter(t => t.status === "Done" && new Date(t.dueDate) >= new Date()).length;
-    return Math.round(((completed / total) * 0.6 + (onTime / completed || 0) * 0.4) * 100);
-  }, [tasks]);
+const ProductivityScore = ({ score = 0 }) => {
 
   return (
     <motion.div
@@ -302,7 +282,6 @@ const Dashboard = () => {
   const { scrollYProgress } = useScroll();
   const backgroundY = useTransform(scrollYProgress, [0, 1], ["0%", "20%"]);
 
-  const [tasks, setTasks] = useState([]);
   const [projects, setProjects] = useState([]);
 
   const [filters, setFilters] = useState({
@@ -311,47 +290,43 @@ const Dashboard = () => {
     project: "",
   });
 
-  const [loading, setLoading] = useState(true);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-
-    try {
-      const params = new URLSearchParams();
-
-      Object.entries(filters).forEach(
-        ([key, value]) => value && params.append(key, value)
-      );
-
-      const [taskData, projectData] = await Promise.all([
-        request(`/api/tasks${params.toString() ? `?${params}` : ""}`),
-        request("/api/projects"),
-      ]);
-
-      setTasks(taskData);
-      setProjects(projectData);
-    } catch (error) {
-      toast.error(error.message);
-    } finally {
-      setLoading(false);
-    }
+  const fetchOverview = useCallback(async () => {
+    const params = new URLSearchParams();
+    Object.entries(filters).forEach(([key, value]) => value && params.append(key, value));
+    const query = params.toString() ? `?${params}` : "";
+    return request(`/api/dashboard/overview${query}`);
   }, [filters, request]);
 
-  useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+  const handlePollError = usePollingErrorHandler("Could not load dashboard");
 
-  const stats = useMemo(
-    () => ({
-      total: tasks.length,
-      completed: tasks.filter((task) => task.status === "Done").length,
-      inProgress: tasks.filter((task) => task.status === "In Progress").length,
-      overdue: tasks.filter((task) => task.status === "Overdue").length,
-    }),
-    [tasks]
+  const { data: overview, loading, refreshing, lastUpdated, refresh } = useRealtimePolling(
+    fetchOverview,
+    { onError: handlePollError }
   );
 
-  if (loading) return <LoadingState label="Loading dashboard..." />;
+  useEffect(() => {
+    refresh();
+  }, [filters, refresh]);
+
+  useEffect(() => {
+    request("/api/projects")
+      .then(setProjects)
+      .catch((error) => toast.error(error.message));
+  }, [request]);
+
+  const tasks = overview?.tasks ?? [];
+  const stats = overview?.stats ?? { total: 0, completed: 0, inProgress: 0, overdue: 0 };
+  const trends = overview?.trends ?? {};
+  const weeklyActivity = overview?.weeklyActivity ?? [];
+  const priorityDistribution = overview?.priorityDistribution ?? [];
+  const productivityScore = overview?.productivityScore ?? 0;
+
+  const lastSyncLabel = useMemo(() => {
+    if (!lastUpdated) return null;
+    return lastUpdated.toLocaleTimeString();
+  }, [lastUpdated]);
+
+  if (loading && !overview) return <LoadingState label="Loading dashboard..." />;
 
   return (
     <div className="relative min-h-screen overflow-x-hidden bg-[#0b1120] px-4 py-6 text-white md:px-6">
@@ -376,9 +351,10 @@ const Dashboard = () => {
         <motion.section
           initial={{ opacity: 0, y: -30 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative mb-8 overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-r from-cyan-500/10 via-fuchsia-500/10 to-cyan-500/10 p-8 backdrop-blur-2xl"
+          className="relative mb-8 overflow-hidden rounded-[32px] border border-white/10 bg-gradient-to-r from-cyan-500/10 via-fuchsia-500/10 to-cyan-500/10 p-8 backdrop-blur-2xl shadow-[0_0_60px_-12px_rgba(6,182,212,0.15)]"
         >
-          <div className="absolute inset-0 opacity-20"></div>
+          <motion.div className="pointer-events-none absolute -right-20 -top-20 h-56 w-56 rounded-full bg-cyan-500/10 blur-3xl" />
+          <div className="absolute inset-0 opacity-20" />
           
           <div className="relative z-10 flex flex-col justify-between gap-4 md:flex-row md:items-center">
             <div>
@@ -386,14 +362,16 @@ const Dashboard = () => {
                 <Sparkles className="h-4 w-4" />
                 {user?.role === "admin" ? "Admin Overview" : "My Workspace"}
               </p>
-              <h1 className="mt-4 text-5xl font-black leading-tight md:text-6xl">
-                Crazy Productivity
+              <h1 className="mt-4 text-4xl font-black leading-tight md:text-5xl">
+                Your productivity
                 <br />
-                Dashboard <span className="bg-gradient-to-r from-cyan-400 to-fuchsia-400 bg-clip-text text-transparent">⚡</span>
+                <span className="bg-gradient-to-r from-cyan-400 to-fuchsia-400 bg-clip-text text-transparent">
+                  command center
+                </span>
               </h1>
               <p className="mt-4 max-w-2xl text-slate-300">
-                Track projects, monitor deadlines, and manage your entire workflow
-                with futuristic visuals and real-time updates.
+                Track projects, monitor deadlines, and manage your workflow
+                with a clear view of what matters most.
               </p>
             </div>
             
@@ -408,11 +386,23 @@ const Dashboard = () => {
           </div>
         </motion.section>
 
-        <PageHeader
-          eyebrow="Workspace"
-          title="Dashboard"
-          description="Manage everything beautifully."
-        />
+        <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+          <PageHeader
+            eyebrow="Workspace"
+            title="Dashboard"
+            description="Live data from your backend — refreshes every 15 seconds."
+          />
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs ${
+              refreshing
+                ? "border-cyan-400/40 bg-cyan-500/10 text-cyan-300"
+                : "border-white/10 bg-white/5 text-slate-400"
+            }`}
+          >
+            <Radio className={`h-3 w-3 ${refreshing ? "animate-pulse" : ""}`} />
+            Live{lastSyncLabel ? ` · ${lastSyncLabel}` : ""}
+          </span>
+        </div>
 
         {/* Stats Grid */}
         <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4">
@@ -421,8 +411,8 @@ const Dashboard = () => {
             value={stats.total}
             icon={<FolderKanban size={30} />}
             gradient="bg-gradient-to-br from-slate-800 to-slate-900"
-            trend="up"
-            trendValue="12%"
+            trend={trends.total?.direction}
+            trendValue={`${trends.total?.value ?? 0}%`}
             delay={0}
           />
           <StatCard3D
@@ -430,8 +420,8 @@ const Dashboard = () => {
             value={stats.completed}
             icon={<CheckCircle size={30} />}
             gradient="bg-gradient-to-br from-emerald-500 to-green-700"
-            trend="up"
-            trendValue="8%"
+            trend={trends.completed?.direction}
+            trendValue={`${trends.completed?.value ?? 0}%`}
             delay={0.1}
           />
           <StatCard3D
@@ -439,6 +429,8 @@ const Dashboard = () => {
             value={stats.inProgress}
             icon={<Clock3 size={30} />}
             gradient="bg-gradient-to-br from-cyan-500 to-blue-700"
+            trend={trends.inProgress?.direction}
+            trendValue={`${trends.inProgress?.value ?? 0}%`}
             delay={0.2}
           />
           <StatCard3D
@@ -446,8 +438,8 @@ const Dashboard = () => {
             value={stats.overdue}
             icon={<AlertTriangle size={30} />}
             gradient="bg-gradient-to-br from-rose-500 to-red-700"
-            trend="down"
-            trendValue="5%"
+            trend={trends.overdue?.direction}
+            trendValue={`${trends.overdue?.value ?? 0}%`}
             delay={0.3}
           />
         </div>
@@ -480,10 +472,13 @@ const Dashboard = () => {
         </motion.div>
 
         {/* Productivity Score */}
-        <ProductivityScore tasks={tasks} />
+        <ProductivityScore score={productivityScore} />
 
         {/* Analytics Charts */}
-        <AnalyticsChart tasks={tasks} />
+        <AnalyticsChart
+          priorityDistribution={priorityDistribution}
+          weeklyActivity={weeklyActivity}
+        />
 
         {/* Filters */}
         <motion.section
