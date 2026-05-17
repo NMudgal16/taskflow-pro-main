@@ -165,11 +165,11 @@ const Login = () => {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2 bg-slate-800/50 rounded p-2">
                 <span className="text-xs text-slate-400">Email:</span>
-                <span className="text-xs font-mono text-cyan-300 select-all">admin@taskflow.com</span>
+                <span className="text-xs font-mono text-cyan-300 select-all">admin@taskflow.local</span>
               </div>
               <div className="flex items-center justify-between gap-2 bg-slate-800/50 rounded p-2">
                 <span className="text-xs text-slate-400">Password:</span>
-                <span className="text-xs font-mono text-cyan-300 select-all">admin123</span>
+                <span className="text-xs font-mono text-cyan-300 select-all">Admin123!</span>
               </div>
             </div>
           </motion.div>
