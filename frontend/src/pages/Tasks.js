@@ -24,9 +24,10 @@ const TaskFormModal = ({
   form,
   projects,
   saving,
-  selectedProject,
+  isAdmin,
   memberOptions,
   setForm,
+  onProjectChange,
   onClose,
   onSubmit,
 }) => (
@@ -53,10 +54,24 @@ const TaskFormModal = ({
         <div className="grid gap-5 sm:grid-cols-2">
           <label className="block">
             <span className="text-sm font-bold uppercase tracking-wider text-slate-300">Project</span>
-            <select className="mt-2 h-[52px] w-full rounded-lg border border-[#303852] bg-[#252b40] px-5 text-lg font-bold text-white outline-none transition focus:border-[#5268ff] focus:ring-2 focus:ring-[#5268ff]/30" value={form.project} onChange={(event) => setForm({ ...form, project: event.target.value, assignedTo: "" })} required>
+            <select
+              className="mt-2 h-[52px] w-full rounded-lg border border-[#303852] bg-[#252b40] px-5 text-lg font-bold text-white outline-none transition focus:border-[#5268ff] focus:ring-2 focus:ring-[#5268ff]/30"
+              value={form.project}
+              onChange={(event) => onProjectChange(event.target.value)}
+              required
+            >
               <option value="">Select project</option>
-              {projects.map((project) => <option key={project._id} value={project._id}>{project.name}</option>)}
+              {projects.map((project) => (
+                <option key={project._id} value={project._id}>
+                  {project.name}
+                </option>
+              ))}
             </select>
+            {!isAdmin && projects.length === 0 && (
+              <p className="mt-2 text-sm text-amber-400">
+                You are not on any project yet. Ask an admin to add you from the Projects page.
+              </p>
+            )}
           </label>
 
           <label className="block">
@@ -77,7 +92,9 @@ const TaskFormModal = ({
             </select>
             {form.project && memberOptions.length === 0 && (
               <p className="mt-2 text-sm text-amber-400">
-                No member accounts found. Sign up a user with the Member role, then assign them here.
+                {isAdmin
+                  ? "No member accounts found. Sign up a user with the Member role first."
+                  : "No other members on this project to assign. You can assign the task to yourself."}
               </p>
             )}
           </label>
@@ -120,7 +137,7 @@ const TaskFormModal = ({
 );
 
 const Tasks = () => {
-  const { isAdmin, request } = useAuth();
+  const { isAdmin, request, user } = useAuth();
   const [projects, setProjects] = useState([]);
   const [allMembers, setAllMembers] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -135,31 +152,63 @@ const Tasks = () => {
     return projects.find((project) => project._id === form.project);
   }, [projects, form.project]);
 
+  const assignableProjects = useMemo(() => {
+    if (isAdmin) return projects;
+    return projects.filter((project) =>
+      project.members?.some((member) => String(member._id) === String(user?.id))
+    );
+  }, [isAdmin, projects, user?.id]);
+
   const memberOptions = useMemo(() => {
-    if (!form.project) return [];
-    return allMembers;
-  }, [allMembers, form.project]);
+    if (!form.project || !selectedProject) return [];
+    if (isAdmin) return allMembers;
+    const projectMembers = (selectedProject.members || []).filter(
+      (member) => member.role === "member"
+    );
+    const hasSelf = projectMembers.some(
+      (member) => String(member._id) === String(user?.id)
+    );
+    if (!hasSelf && user?.id) {
+      return [
+        { _id: user.id, name: user.name, email: user.email, role: "member" },
+        ...projectMembers,
+      ];
+    }
+    return projectMembers;
+  }, [allMembers, form.project, isAdmin, selectedProject, user]);
 
   const loadFormData = useCallback(async () => {
     try {
-      const [projectData, members] = await Promise.all([
-        request("/api/projects"),
-        isAdmin ? request("/api/admin/users") : Promise.resolve([]),
-      ]);
+      const projectData = await request("/api/projects");
       setProjects(projectData);
-      setAllMembers(Array.isArray(members) ? members : []);
+      if (isAdmin) {
+        const members = await request("/api/admin/users");
+        setAllMembers(Array.isArray(members) ? members : []);
+      } else {
+        setAllMembers([]);
+      }
     } catch (error) {
       toast.error(error.message);
     }
   }, [isAdmin, request]);
 
   const openTaskForm = () => {
-    if (!isAdmin) {
-      toast.error("Only admins can create tasks. Log in with an admin account.");
-      return;
-    }
     loadFormData();
     setShowForm(true);
+  };
+
+  const handleProjectChange = (projectId) => {
+    const next = { ...form, project: projectId, assignedTo: "" };
+    if (!isAdmin && projectId && user?.id) {
+      const project = projects.find((item) => item._id === projectId);
+      const onProject = project?.members?.some(
+        (member) => String(member._id) === String(user.id)
+      );
+      if (onProject) {
+        next.assignedTo = user.id;
+      }
+    }
+    setForm(next);
   };
 
   const fetchTasks = useCallback(
@@ -195,11 +244,6 @@ const Tasks = () => {
 
   const createTask = async (event) => {
     event.preventDefault();
-
-    if (!isAdmin) {
-      toast.error("Only admins can create tasks.");
-      return;
-    }
 
     if (!form.assignedTo) {
       toast.error("Please select an assignee (member account).");
@@ -260,16 +304,14 @@ const Tasks = () => {
           <h1 className="text-3xl font-bold tracking-tight text-white">Tasks</h1>
           <p className="mt-2 text-lg font-medium text-slate-500">{tasks.length} tasks</p>
         </div>
-        {isAdmin && (
-          <button
-            type="button"
-            onClick={openTaskForm}
-            className="inline-flex items-center justify-center gap-3 rounded-lg bg-[#5268ff] px-6 py-3 text-lg font-bold text-white shadow-[0_10px_24px_rgba(82,104,255,0.35)] transition hover:bg-[#6377ff]"
-          >
-            <Plus className="h-5 w-5" />
-            New Task
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={openTaskForm}
+          className="inline-flex items-center justify-center gap-3 rounded-lg bg-[#5268ff] px-6 py-3 text-lg font-bold text-white shadow-[0_10px_24px_rgba(82,104,255,0.35)] transition hover:bg-[#6377ff]"
+        >
+          <Plus className="h-5 w-5" />
+          New Task
+        </button>
       </header>
 
       <div className="mt-8 flex flex-col gap-4 xl:flex-row xl:items-center">
@@ -304,14 +346,15 @@ const Tasks = () => {
         </button>
       </div>
 
-      {showForm && isAdmin && (
+      {showForm && (
         <TaskFormModal
           form={form}
-          projects={projects}
+          projects={assignableProjects}
           saving={saving}
-          selectedProject={selectedProject}
+          isAdmin={isAdmin}
           memberOptions={memberOptions}
           setForm={setForm}
+          onProjectChange={handleProjectChange}
           onClose={() => setShowForm(false)}
           onSubmit={createTask}
         />
@@ -321,16 +364,14 @@ const Tasks = () => {
         <section className="flex min-h-[520px] items-center justify-center text-center">
           <div>
             <h2 className="text-2xl font-semibold text-slate-500">No tasks found</h2>
-            {isAdmin && (
-              <button
-                type="button"
-                onClick={openTaskForm}
-                className="mt-6 inline-flex items-center justify-center gap-3 rounded-lg bg-[#5268ff] px-6 py-3 text-lg font-bold text-white shadow-[0_12px_30px_rgba(82,104,255,0.35)] transition hover:bg-[#6377ff]"
-              >
-                <Plus className="h-5 w-5" />
-                Create Task
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={openTaskForm}
+              className="mt-6 inline-flex items-center justify-center gap-3 rounded-lg bg-[#5268ff] px-6 py-3 text-lg font-bold text-white shadow-[0_12px_30px_rgba(82,104,255,0.35)] transition hover:bg-[#6377ff]"
+            >
+              <Plus className="h-5 w-5" />
+              Create Task
+            </button>
           </div>
         </section>
       ) : (

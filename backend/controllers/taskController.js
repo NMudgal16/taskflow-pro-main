@@ -42,6 +42,9 @@ const parseDueDate = (value) => {
   return parsed;
 };
 
+const isUserOnProject = (project, userId) =>
+  project.members.some((memberId) => String(memberId) === String(userId));
+
 const createTask = async (req, res) => {
   try {
     const { title, description, project, assignedTo, priority, status, dueDate } = req.body;
@@ -77,15 +80,25 @@ const createTask = async (req, res) => {
 
     if (assignee.role !== "member") {
       return res.status(400).json({
-        message: "Tasks must be assigned to a member account. Register a user with the Member role, or add them to the project from the Projects page.",
+        message: "Tasks must be assigned to a member account.",
       });
     }
 
-    const isProjectMember = targetProject.members.some(
-      (memberId) => String(memberId) === String(assignedTo)
-    );
+    const assigneeOnProject = isUserOnProject(targetProject, assignedTo);
 
-    if (!isProjectMember) {
+    if (req.user.role === "member") {
+      if (!isUserOnProject(targetProject, req.user._id)) {
+        return res.status(403).json({
+          message: "You can only create tasks in projects you belong to. Ask an admin to add you to the project.",
+        });
+      }
+
+      if (!assigneeOnProject) {
+        return res.status(400).json({
+          message: "Assignee must already be a member of this project.",
+        });
+      }
+    } else if (!assigneeOnProject) {
       targetProject.members.push(assignee._id);
       await targetProject.save();
     }
