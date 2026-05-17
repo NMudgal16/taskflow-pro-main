@@ -154,6 +154,25 @@ const Login = () => {
               Back to role selection
             </Link>
           </motion.div>
+
+          <motion.div
+            className="mt-6 rounded-lg bg-gradient-to-r from-slate-700/30 to-slate-600/30 border border-slate-500/20 p-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <p className="text-xs font-semibold text-slate-300 mb-3">Demo Admin Credentials:</p>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between gap-2 bg-slate-800/50 rounded p-2">
+                <span className="text-xs text-slate-400">Email:</span>
+                <span className="text-xs font-mono text-cyan-300 select-all">admin@taskflow.com</span>
+              </div>
+              <div className="flex items-center justify-between gap-2 bg-slate-800/50 rounded p-2">
+                <span className="text-xs text-slate-400">Password:</span>
+                <span className="text-xs font-mono text-cyan-300 select-all">admin123</span>
+              </div>
+            </div>
+          </motion.div>
         </GlassCard>
       </motion.div>
     </AuthPage>
