@@ -233,14 +233,14 @@ const Tasks = () => {
 
   const filteredTasks = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return tasks.filter((task) => {
+    return (tasksData ?? []).filter((task) => {
       const matchesSearch = !query || task.title?.toLowerCase().includes(query) || task.description?.toLowerCase().includes(query);
       const matchesStatus = statusFilter === "All Status" || task.status === statusFilter;
       const matchesPriority = priorityFilter === "All Priority" || task.priority === priorityFilter;
       const matchesOverdue = !overdueOnly || task.status === "Overdue";
       return matchesSearch && matchesStatus && matchesPriority && matchesOverdue;
     });
-  }, [overdueOnly, priorityFilter, search, statusFilter, tasks]);
+  }, [overdueOnly, priorityFilter, search, statusFilter, tasksData]);
 
   const createTask = async (event) => {
     event.preventDefault();

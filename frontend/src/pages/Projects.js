@@ -97,13 +97,13 @@ const Projects = () => {
 
   const filteredProjects = useMemo(() => {
     const query = search.trim().toLowerCase();
-    return projects.filter((project) => {
+    return (projectsData ?? []).filter((project) => {
       const matchesSearch = !query || project.name?.toLowerCase().includes(query) || project.description?.toLowerCase().includes(query);
       const projectStatus = project.status || "active";
       const matchesFilter = activeFilter === "All" || projectStatus === activeFilter;
       return matchesSearch && matchesFilter;
     });
-  }, [activeFilter, projects, search]);
+  }, [activeFilter, projectsData, search]);
 
   const createProject = async (event) => {
     event.preventDefault();
