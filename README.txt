@@ -7,7 +7,7 @@ Tech Stack
 - Backend: Node.js, Express.js
 - Database: MongoDB Atlas with Mongoose
 - Auth: JWT and bcrypt
-- Deployment: Railway for backend, Vercel for frontend
+- Deployment: Railway for backend and frontend
 
 Features
 - Signup and login with JWT authentication
@@ -88,7 +88,7 @@ Backend:
 - CLIENT_URL: Optional comma-separated list of allowed frontend origins
 
 Frontend:
-- REACT_APP_API_URL: Backend API URL. Use http://localhost:5000 locally and your Railway URL in production.
+- REACT_APP_API_URL: Backend API URL. Use http://localhost:5000 locally and your Railway backend URL in production.
 
 Deployment Instructions
 
@@ -107,13 +107,14 @@ Railway Backend:
    If your Atlas password contains special characters such as @, #, %, /, or ?, URL-encode the password before saving it.
 5. Deploy and copy the Railway backend URL.
 
-Vercel Frontend:
-1. Import the same GitHub repository in Vercel.
-2. Set the root directory to frontend.
-3. Add environment variable:
-   REACT_APP_API_URL=https://your-railway-backend-url.up.railway.app
-4. Deploy the frontend.
-5. Add the Vercel frontend URL to Railway as CLIENT_URL.
+Railway Frontend:
+1. Create another Railway service from the same GitHub repository.
+2. Set the service root directory to frontend.
+3. Railway will use frontend/railway.json to build and run the React app.
+4. The committed frontend/.env.production points React to:
+   REACT_APP_API_URL=https://web-production-fc97.up.railway.app
+5. Deploy the frontend and copy the Railway frontend URL.
+6. Add the frontend URL to the backend service as CLIENT_URL, then redeploy the backend.
 
 Live URL
 - Frontend: Not deployed yet
