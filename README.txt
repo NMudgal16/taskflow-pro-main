@@ -98,10 +98,13 @@ Railway Backend:
 3. Set the Railway start command through the included Procfile:
    web: node backend/server.js
 4. Add environment variables in the Railway dashboard:
-   MONGODB_URI
-   JWT_SECRET
-   PORT
-   CLIENT_URL
+   MONGODB_URI=mongodb+srv://<username>:<real-password>@<cluster-host>/taskflow?retryWrites=true&w=majority
+   JWT_SECRET=<long-random-secret>
+   CLIENT_URL=<your-vercel-frontend-url>
+
+   Do not leave <password> or any angle-bracket placeholder in MONGODB_URI.
+   Railway does not run MongoDB on 127.0.0.1, so the app must use a real MongoDB Atlas URI.
+   If your Atlas password contains special characters such as @, #, %, /, or ?, URL-encode the password before saving it.
 5. Deploy and copy the Railway backend URL.
 
 Vercel Frontend:

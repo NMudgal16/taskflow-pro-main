@@ -23,6 +23,13 @@ app.use(cors({
 }));
 app.use(express.json({ limit: "1mb" }));
 const isProduction = process.env.NODE_ENV === "production";
+const isHostedEnvironment = Boolean(
+  process.env.RAILWAY_ENVIRONMENT ||
+    process.env.RAILWAY_PROJECT_ID ||
+    process.env.RENDER ||
+    process.env.FLY_APP_NAME ||
+    process.env.K_SERVICE
+);
 
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -56,7 +63,11 @@ const getMongoUri = () => {
   const isPlaceholder = uri && (uri.includes("<password>") || uri.includes("<REPLACE_WITH_PASSWORD>") || uri.includes("<db_password>") || uri.includes("<"));
 
   if (isPlaceholder) {
-    console.warn("Warning: backend/.env contains a placeholder MongoDB URI. Falling back to local MongoDB URI.");
+    if (isProduction || isHostedEnvironment) {
+      throw new Error("MONGODB_URI contains placeholder text. Set a real MongoDB Atlas URI in your deployment environment.");
+    }
+
+    console.warn("Warning: backend/.env contains a placeholder MongoDB URI. Falling back to local MongoDB URI for local development.");
     return "mongodb://127.0.0.1:27017/taskflow";
   }
 
