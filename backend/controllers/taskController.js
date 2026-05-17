@@ -2,6 +2,7 @@ const mongoose = require("mongoose");
 const Project = require("../models/Project");
 const Task = require("../models/Task");
 const User = require("../models/User");
+const { getTaskFilterForWorkspace } = require("../utils/workspaceScope");
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 const statuses = ["Todo", "In Progress", "Done", "Overdue"];
@@ -23,7 +24,7 @@ const getTasks = async (req, res) => {
   try {
     await refreshOverdueTasks();
 
-    const filter = req.user.role === "admin" ? {} : { assignedTo: req.user._id };
+    const filter = getTaskFilterForWorkspace(req.user);
     if (req.query.status) filter.status = req.query.status;
     if (req.query.priority) filter.priority = req.query.priority;
     if (req.query.project) filter.project = req.query.project;

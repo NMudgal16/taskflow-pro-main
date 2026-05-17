@@ -2,12 +2,13 @@ const mongoose = require("mongoose");
 const Project = require("../models/Project");
 const Task = require("../models/Task");
 const User = require("../models/User");
+const { getProjectFilterForWorkspace } = require("../utils/workspaceScope");
 
 const isValidId = (id) => mongoose.Types.ObjectId.isValid(id);
 
 const getProjects = async (req, res) => {
   try {
-    const filter = req.user.role === "admin" ? {} : { members: req.user._id };
+    const filter = getProjectFilterForWorkspace(req.user);
     const projects = await Project.find(filter)
       .populate("createdBy", "name email role")
       .populate("members", "name email role")

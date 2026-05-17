@@ -360,7 +360,7 @@ const Dashboard = () => {
             <div>
               <p className="flex items-center gap-2 text-sm uppercase tracking-[0.3em] text-cyan-300">
                 <Sparkles className="h-4 w-4" />
-                {user?.role === "admin" ? "Admin Overview" : "My Workspace"}
+                My Workspace
               </p>
               <h1 className="mt-4 text-4xl font-black leading-tight md:text-5xl">
                 Your productivity

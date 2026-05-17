@@ -11,14 +11,9 @@ import useRealtimePolling from "../hooks/useRealtimePolling";
 import usePollingErrorHandler from "../hooks/usePollingErrorHandler";
 
 const Teams = () => {
-  const { request, isAdmin } = useAuth();
+  const { request } = useAuth();
 
   const fetchMembers = useCallback(async () => {
-    if (isAdmin) {
-      const users = await request("/api/admin/users");
-      return users.filter((u) => u.role === "member");
-    }
-
     const projects = await request("/api/projects");
     const allMembers = new Map();
     projects.forEach((project) => {
@@ -29,7 +24,7 @@ const Teams = () => {
       });
     });
     return Array.from(allMembers.values());
-  }, [isAdmin, request]);
+  }, [request]);
 
   const handlePollError = usePollingErrorHandler("Could not load team members");
 
@@ -63,9 +58,7 @@ const Teams = () => {
             <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">Collaboration</p>
             <h1 className="mt-4 text-5xl font-black leading-tight">Team Members</h1>
             <p className="mt-4 max-w-2xl text-slate-300">
-              {isAdmin
-                ? "All registered members from the database, updated live."
-                : "Members from your projects, updated live."}
+              Members from your projects, updated live.
             </p>
           </div>
           <span

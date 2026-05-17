@@ -1,6 +1,7 @@
 const Task = require("../models/Task");
 const Project = require("../models/Project");
 const User = require("../models/User");
+const { getTaskFilterForWorkspace } = require("../utils/workspaceScope");
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const CHART_COLORS = ["#06b6d4", "#8b5cf6", "#06b6d4", "#8b5cf6", "#d946ef", "#06b6d4", "#f59e0b"];
@@ -12,10 +13,7 @@ const refreshOverdueTasks = async () => {
   );
 };
 
-const getTaskFilterForUser = (user) => {
-  if (user.role === "admin") return {};
-  return { assignedTo: user._id };
-};
+const getTaskFilterForUser = (user) => getTaskFilterForWorkspace(user);
 
 const buildStats = (tasks) => ({
   total: tasks.length,
